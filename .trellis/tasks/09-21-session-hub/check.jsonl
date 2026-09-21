@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/09-21-session-hub/prd.md", "reason": "Verify native-only data, dashboard/session/project accounting, existing search/resume, and Git exclusions against AC1-AC11"}
+{"file": ".trellis/tasks/09-21-session-hub/design.md", "reason": "Verification of contracts, schemas, and launch specifications"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality verification, testing standards, and clean cutover"}

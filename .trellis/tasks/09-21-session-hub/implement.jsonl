@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/09-21-session-hub/prd.md", "reason": "Independent native analytics expansion R1-R13 and AC1-AC11; new scope supersedes Token Monitor runtime catalog"}
+{"file": ".trellis/tasks/09-21-session-hub/design.md", "reason": "Architecture, data models, store schema, and adapter contracts"}
+{"file": ".trellis/tasks/09-21-session-hub/research.md", "reason": "Local CLI and catalog format research and schema findings"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Guidelines for minimal code abstractions and standard library reuse"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error reporting and explicit failure diagnostics guidelines"}

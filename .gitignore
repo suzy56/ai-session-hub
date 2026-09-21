@@ -1,0 +1,50 @@
+# Sidecar (explicitly excluded)
+/sidecar/
+
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Test, coverage & linting caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local environment and secret files
+.env
+.env.*
+!.env.example
+
+# App-local SQLite index & temporary database artifacts
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite-wal
+*.sqlite-shm
+*.db-wal
+*.db-shm
+index.sqlite3*
+
+# OS artifacts
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# Machine-local tooling runtime & cache overrides
+.trellis/.runtime/
+.serena/cache/
+.serena/project.local.yml

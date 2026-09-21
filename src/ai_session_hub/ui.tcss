@@ -1,0 +1,582 @@
+$hub-bg: #1b1d20;
+$hub-panel: #222529;
+$hub-text: #d6d8da;
+$hub-muted: #92989e;
+$hub-divider: #393e43;
+$hub-accent: #80b6af;
+$hub-selection: #2e4947;
+
+Screen {
+    background: $hub-bg;
+    color: $hub-text;
+    padding: 0 1;
+}
+
+Widget {
+    scrollbar-size: 1 1;
+    scrollbar-background: $hub-bg;
+    scrollbar-background-hover: $hub-bg;
+    scrollbar-background-active: $hub-bg;
+    scrollbar-color: $hub-divider;
+    scrollbar-color-hover: $hub-muted;
+    scrollbar-color-active: $hub-accent;
+}
+
+Button {
+    width: auto;
+    min-width: 0;
+    height: 1;
+    min-height: 1;
+    border: none;
+    padding: 0 1;
+    margin: 0;
+    color: $hub-muted;
+    background: $hub-bg;
+    text-style: none;
+}
+
+Button:hover, Button.-active {
+    border: none;
+    background: $hub-panel;
+    color: $hub-text;
+    tint: transparent;
+}
+
+Button.-primary {
+    border: none;
+    background: $hub-selection;
+    color: $hub-accent;
+    text-style: bold;
+}
+
+Button:focus {
+    border: none;
+    background: $hub-selection;
+    color: $hub-text;
+    text-style: bold underline;
+    background-tint: transparent;
+}
+
+Button:disabled {
+    color: $hub-muted;
+    text-opacity: 0.5;
+}
+
+#view-nav {
+    height: 1;
+    margin: 0;
+    width: 100%;
+}
+
+#app-title {
+    width: auto;
+    height: 1;
+    margin-right: 2;
+    color: $hub-text;
+    text-style: bold;
+}
+
+#view-nav Button {
+    min-width: 6;
+    text-wrap: nowrap;
+    padding: 0 1;
+}
+
+#nav-spacer {
+    width: 1fr;
+    height: 1;
+}
+
+#scope-bar {
+    height: 1;
+    margin-top: 0;
+    margin-bottom: 1;
+    border-bottom: solid $hub-divider;
+}
+
+#scope-summary {
+    width: 100%;
+    height: 1;
+    color: $hub-muted;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+#views {
+    height: 1fr;
+}
+
+#sessions-view, #projects-view {
+    height: 100%;
+}
+
+#query, .dialog-input {
+    height: 3;
+    min-height: 3;
+    border: tall $hub-divider;
+    background: $hub-bg;
+    color: $hub-text;
+    padding: 0 1;
+}
+
+#query:focus, .dialog-input:focus {
+    border: tall $hub-accent;
+    background-tint: transparent;
+}
+
+Input > .input--placeholder {
+    color: $hub-muted;
+}
+
+Input > .input--cursor {
+    color: $hub-bg;
+    background: $hub-accent;
+}
+
+Input > .input--selection {
+    background: $hub-selection;
+    color: $hub-text;
+}
+
+#main-container, #projects-main-container {
+    height: 1fr;
+}
+
+#sessions, #project-tree-container {
+    width: 45%;
+    height: 100%;
+}
+
+#preview-container, #project-preview-container {
+    width: 55%;
+    height: 100%;
+    border-left: solid $hub-divider;
+    padding-left: 1;
+}
+
+#preview-header, #project-preview-header, #project-tree-header {
+    width: 100%;
+    height: 1;
+    color: $hub-text;
+    text-style: bold;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+#preview-meta, #project-preview-meta {
+    width: 100%;
+    height: 2;
+    color: $hub-muted;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+#preview, #project-preview {
+    height: 1fr;
+    border: none;
+    background: $hub-bg;
+    color: $hub-text;
+    padding: 0;
+}
+
+#preview:focus, #project-preview:focus {
+    border: none;
+}
+
+TextArea .text-area--cursor {
+    background: $hub-accent;
+    color: $hub-bg;
+    text-style: none;
+}
+
+TextArea .text-area--cursor-line {
+    background: $hub-panel;
+}
+
+TextArea .text-area--selection {
+    background: $hub-selection;
+    color: $hub-text;
+}
+
+#preview-info, #project-preview-info {
+    margin-top: 0;
+    color: $hub-accent;
+}
+
+DataTable, #project-tree {
+    background: $hub-bg;
+    color: $hub-text;
+    border: none;
+    border-left: blank $hub-bg;
+}
+
+DataTable:focus, #project-tree:focus {
+    border-left: solid $hub-accent;
+    background-tint: transparent;
+}
+
+DataTable > .datatable--header {
+    background: $hub-panel;
+    color: $hub-muted;
+    text-style: none;
+}
+
+DataTable > .datatable--cursor, Tree > .tree--cursor {
+    background: $hub-panel;
+    color: $hub-text;
+    text-style: none;
+}
+
+DataTable:focus > .datatable--cursor, Tree:focus > .tree--cursor {
+    background: $hub-selection;
+    color: $hub-text;
+    text-style: bold;
+}
+
+DataTable > .datatable--hover, Tree > .tree--highlight-line {
+    background: $hub-panel;
+}
+
+Tree > .tree--guides, Tree > .tree--guides-hover,
+Tree > .tree--guides-selected {
+    color: $hub-divider;
+}
+
+#project-tree {
+    height: 1fr;
+}
+
+#session-page-status, #project-tree-status, #daily-table-status {
+    height: 1;
+    width: 100%;
+    color: $hub-muted;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+#dashboard-view {
+    height: 100%;
+    padding: 0;
+}
+
+#dash-subnav {
+    height: 1;
+    margin-bottom: 1;
+    width: 100%;
+}
+
+#dash-subnav Button {
+    min-width: 6;
+    padding: 0 1;
+}
+
+#kpi-row {
+    layout: grid;
+    grid-size: 4 2;
+    grid-columns: 1fr;
+    grid-rows: 3 3;
+    grid-gutter: 1 1;
+    height: 7;
+    margin-bottom: 1;
+}
+
+.kpi-card {
+    height: 3;
+    width: 1fr;
+    padding: 0;
+}
+
+.kpi-title, .kpi-value, .kpi-sub {
+    height: 1;
+    width: 100%;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+.kpi-title, .kpi-sub {
+    color: $hub-muted;
+}
+
+.kpi-value {
+    color: $hub-text;
+    text-style: bold;
+}
+
+.dashboard-card {
+    height: auto;
+    margin-bottom: 1;
+    border-top: solid $hub-divider;
+}
+
+.section-title {
+    width: 100%;
+    height: 1;
+    color: $hub-text;
+    text-style: bold;
+}
+
+#activity-heatmap {
+    height: auto;
+    width: 100%;
+    color: $hub-text;
+    margin: 0 0 1 0;
+}
+
+#dash-breakdown-row {
+    height: auto;
+    width: 100%;
+}
+
+#model-card {
+    width: 1fr;
+    height: auto;
+    margin-right: 1;
+}
+
+#tool-card {
+    width: 1fr;
+    height: auto;
+    margin-left: 0;
+}
+
+#model-table, #tool-table, #daily-table {
+    height: auto;
+    min-height: 4;
+    max-height: 12;
+}
+
+#project-tree-columns {
+    height: 1;
+    width: 100%;
+    color: $hub-muted;
+    text-style: bold;
+    padding-left: 2;
+    border-bottom: solid $hub-divider;
+}
+
+#trend-chart-card {
+    height: auto;
+    width: 100%;
+}
+
+#usage-trend {
+    height: auto;
+    width: 100%;
+    color: $hub-text;
+    margin: 1 0;
+}
+
+#scan-status, #key-hints {
+    height: 1;
+    width: 100%;
+    color: $hub-muted;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+#key-hints {
+    background: $hub-panel;
+}
+
+Screen.narrow #sessions, Screen.narrow #project-tree-container {
+    width: 100%;
+}
+
+Screen.narrow #preview-container, Screen.narrow #project-preview-container {
+    display: none;
+}
+
+Screen.narrow.reading #sessions, Screen.narrow.reading #project-tree-container {
+    display: none;
+}
+
+Screen.narrow.reading #preview-container,
+Screen.narrow.reading #project-preview-container {
+    display: block;
+    width: 100%;
+    border-left: none;
+    padding-left: 0;
+}
+
+Screen.narrow #kpi-row {
+    grid-size: 2 4;
+    grid-rows: 3 3 3 3;
+    grid-gutter: 1 1;
+    height: 15;
+}
+
+Screen.narrow #dash-breakdown-row {
+    layout: vertical;
+}
+
+Screen.narrow #model-card, Screen.narrow #tool-card {
+    width: 100%;
+    margin-right: 0;
+}
+
+Screen.narrow #activity-heatmap {
+    height: auto;
+}
+Screen.narrow #project-tree-columns {
+    display: none;
+}
+
+ModalScreen {
+    align: center middle;
+    background: rgba(0, 0, 0, 0.65);
+}
+
+.hub-dialog {
+    width: 80%;
+    max-width: 90;
+    height: auto;
+    max-height: 90%;
+    border: solid $hub-divider;
+    padding: 1 2;
+    background: $hub-bg;
+    color: $hub-text;
+    overflow-y: auto;
+}
+
+.hub-dialog Label {
+    width: 100%;
+    height: auto;
+}
+
+.dialog-title {
+    height: auto;
+    min-height: 1;
+    width: 100%;
+    margin-bottom: 1;
+    color: $hub-text;
+    text-style: bold;
+}
+
+.dialog-actions {
+    height: 1;
+    margin-top: 1;
+    align-horizontal: right;
+}
+
+.dialog-actions Button {
+    margin-left: 1;
+}
+
+#filter-tabs {
+    height: 1;
+    margin-bottom: 1;
+}
+
+#filter-tabs Button {
+    width: 1fr;
+    padding: 0 1;
+}
+
+#filter-results {
+    height: 10;
+    max-height: 40vh;
+    min-height: 3;
+    border: none;
+    border-left: blank $hub-bg;
+    padding: 0 1;
+    background: $hub-bg;
+    color: $hub-text;
+}
+
+#filter-results:focus {
+    border-left: solid $hub-accent;
+}
+
+#filter-results > .option-list--option-highlighted {
+    background: $hub-selection;
+    color: $hub-text;
+    text-style: bold;
+}
+
+#filter-detail {
+    height: 1;
+    width: 100%;
+    color: $hub-muted;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+    margin-top: 1;
+}
+
+#filter-draft {
+    height: 1;
+    width: 100%;
+    color: $hub-text;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+#settings-language {
+    width: 100%;
+    height: 3;
+    margin-bottom: 1;
+}
+
+#settings-language SelectCurrent {
+    border: tall $hub-divider;
+    background: $hub-bg;
+    color: $hub-text;
+}
+
+#settings-language:focus SelectCurrent {
+    border: tall $hub-accent;
+}
+
+#settings-language SelectOverlay {
+    border: solid $hub-divider;
+    background: $hub-panel;
+    color: $hub-text;
+}
+
+#settings-language .option-list--option-highlighted {
+    background: $hub-selection;
+    color: $hub-text;
+}
+
+Screen.narrow .hub-dialog {
+    width: 96%;
+    padding: 1;
+}
+
+#filter-dialog {
+    height: 90%;
+    padding: 0 1;
+}
+
+#filter-dialog .dialog-title {
+    margin-bottom: 0;
+}
+
+#filter-dialog #filter-tabs {
+    margin-bottom: 0;
+}
+
+#filter-dialog #filter-results {
+    height: 1fr;
+    max-height: 100%;
+}
+
+#filter-detail, #filter-draft {
+    height: 2;
+    width: 100%;
+    color: $hub-muted;
+    text-overflow: ellipsis;
+}
+
+#filter-tabs Button.active {
+    color: $hub-accent;
+    text-style: bold underline;
+}
+
+#info-dialog {
+    height: 85%;
+}
+
+#info-text {
+    height: 1fr;
+    border: none;
+    background: $hub-bg;
+}

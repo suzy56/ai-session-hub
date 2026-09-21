@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-session-hub"
+version = "0.1.0"
+description = "Local AI session browser and resume TUI"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "textual==8.2.8",
+    "zstandard==0.25.0",
+]
+
+[project.scripts]
+ai-session-hub = "ai_session_hub.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ai_session_hub = ["*.tcss"]
