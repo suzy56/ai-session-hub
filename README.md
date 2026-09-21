@@ -233,6 +233,11 @@ The test suite includes 85+ automated integration tests covering transcript inge
 .venv/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
 ```
 
+## Acknowledgments
+
+* Inspired by the design and analytics concepts of [Token Monitor](https://github.com/Javis603/token-monitor).
+* Thanks to the [Linux.do](https://linux.do/) community for project promotion and feedback.
+
 ---
 
 ## License

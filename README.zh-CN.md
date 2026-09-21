@@ -233,6 +233,11 @@ cache_write_per_million = 3.75
 .venv/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
 ```
 
+## 致谢（Acknowledgments）
+
+* 感谢 [Token Monitor](https://github.com/Javis603/token-monitor) 项目在设计与用量分析理念上的启发。
+* 感谢 [Linux.do](https://linux.do/) 社区对本项目的推广与宝贵反馈（Thanks to the Linux.do community for project promotion and feedback）。
+
 ---
 
 ## 开源许可证
