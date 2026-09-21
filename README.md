@@ -39,7 +39,7 @@
 
 **AI Session Hub** is an open-source, keyboard-driven Terminal User Interface (TUI) built for developers who work across multiple AI programming assistants. 
 
-Instead of juggling fragmented histories across disparate directory structures, CLI configurations, and proprietary storage formats, AI Session Hub reads your local AI conversation artifacts in real-time, builds a local high-performance SQLite search index, provides comprehensive Token Monitor-inspired usage dashboards, and enables seamless one-key resume back into each tool's native environment.
+Instead of juggling fragmented histories across disparate directory structures, CLI configurations, and proprietary storage formats, AI Session Hub reads your local AI conversation artifacts in real-time, builds a local high-performance SQLite search index, provides comprehensive multi-dimensional usage dashboards, and enables seamless one-key resume back into each tool's native environment.
 
 **100% Local & Privacy-First**: All conversation scanning, token accounting, and search indexing happen strictly on your machine using read-only database connections. No credentials, telemetry, or network prompts are ever transmitted.
 
@@ -62,9 +62,9 @@ AI Session Hub supports native transcript parsing, token accounting, and verifie
 
 ## Key Features
 
-### 📊 Token Monitor-Style Analytics Dashboard
+### 📊 Comprehensive Usage & Analytics Dashboard
 * **8 Core KPI Cards**: Instant visibility into Total Tokens (with coverage metrics), Known Cost (estimated/recorded), Active Days count, Consecutive Day Streak, Peak Single-Day Volume, Most Used Model, Message Count, and Stored Sessions.
-* **Contribution Calendar Heatmap**: A complete GitHub/Token Monitor-style 7-day contribution grid displaying activity across the entire year with multi-level intensity shading.
+* **Contribution Calendar Heatmap**: A complete 7-day contribution grid displaying activity across the entire year with multi-level intensity shading.
 * **Two-Column Distribution Breakdown**: 
   * **By Model**: Model name, visual progress bar (`████████░░`), token volume, percentage share, and estimated cost.
   * **By Tool**: Client tool, visual progress bar, token count, share, and session count.
