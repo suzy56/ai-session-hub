@@ -97,11 +97,24 @@ AI Session Hub 深度适配各大主流 AI 编程工具的原生转录格式与�
 
 ## 安装与快速开始
 
-### 环境依赖
-* Python **3.13** 或更高版本
-* macOS 或 Linux 终端环境（推荐 Ghostty、iTerm2、Alacritty、Kitty、WezTerm 等现代终端）
+### Homebrew 安装（macOS / Linux — 推荐）
 
-### 快速安装
+开箱即用，无需预装 Python 环境：
+
+```bash
+# 通过 Tap 安装
+brew install suzy56/tap/ai-session-hub
+
+# 启动
+ai-session-hub
+
+# 随时一键升级
+brew upgrade ai-session-hub
+```
+
+### 源码编译安装
+
+需先安装 Python **3.13** 或更高版本：
 
 ```bash
 # 1. 克隆代码仓库

@@ -97,11 +97,24 @@ AI Session Hub supports native transcript parsing, token accounting, and verifie
 
 ## Installation & Quick Start
 
-### Prerequisites
-* Python **3.13** or higher
-* macOS or Linux with a POSIX terminal (supports Ghostty, iTerm2, Alacritty, Kitty, WezTerm, Terminal.app)
+### Homebrew (macOS / Linux — Recommended)
 
-### Quick Setup
+Zero-config standalone installation without needing Python pre-installed:
+
+```bash
+# Install via tap
+brew install suzy56/tap/ai-session-hub
+
+# Launch
+ai-session-hub
+
+# Upgrade anytime
+brew upgrade ai-session-hub
+```
+
+### Build from Source
+
+Requires Python **3.13** or higher:
 
 ```bash
 # 1. Clone the repository

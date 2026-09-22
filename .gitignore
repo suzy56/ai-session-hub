@@ -44,6 +44,9 @@ index.sqlite3*
 ._*
 Thumbs.db
 
+*.spec
+.vscode/
+
 # Machine-local tooling runtime & cache overrides
 .trellis/.runtime/
 .serena/cache/

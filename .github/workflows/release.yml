@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build binary on ${{ matrix.os }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+            target: macos-arm64
+          - os: macos-13
+            arch: x86_64
+            target: macos-x64
+          - os: ubuntu-latest
+            arch: x86_64
+            target: linux-x64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install . pyinstaller
+
+      - name: Build standalone binary
+        run: |
+          pyinstaller --onefile \
+            --add-data "src/ai_session_hub/ui.tcss:ai_session_hub" \
+            --name ai-session-hub \
+            src/ai_session_hub/__main__.py
+          cd dist
+          tar -czf "ai-session-hub-${{ matrix.target }}.tar.gz" ai-session-hub
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-session-hub-${{ matrix.target }}
+          path: dist/ai-session-hub-${{ matrix.target }}.tar.gz
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ai-session-hub-macos-arm64/ai-session-hub-macos-arm64.tar.gz
+            ai-session-hub-macos-x64/ai-session-hub-macos-x64.tar.gz
+            ai-session-hub-linux-x64/ai-session-hub-linux-x64.tar.gz
+          generate_release_notes: true
