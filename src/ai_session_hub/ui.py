@@ -8,7 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from rich.text import Text
-from textual import work
+from textual import events, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -27,6 +27,8 @@ from ai_session_hub.source_io import clean_display_text
 from ai_session_hub.store import SearchFilters, SearchPage, SearchResult, Store
 from ai_session_hub.ui_dialogs import FilterScreen, FilterSelection, InfoScreen, SettingsScreen
 from ai_session_hub.ui_layout import PLATFORM_LABELS, compose_hub_widgets
+from ai_session_hub.ui_runtime import RuntimeView
+from ai_session_hub.runtime_monitor import RuntimeSnapshot, collect_runtime
 from rich.cells import cell_len
 from ai_session_hub.usage import AnalyticsSnapshot, UsageSummary
 from ai_session_hub.usage_view import (
@@ -158,6 +160,12 @@ class ScanFinished(Message):
     pass
 
 
+class RuntimeReady(Message):
+    def __init__(self, generation: int, snapshot: RuntimeSnapshot | None, error: str | None = None):
+        super().__init__()
+        self.generation, self.snapshot, self.error = generation, snapshot, error
+
+
 class HubApp(App):
     """A local, keyboard-first history workspace; displayed labels never identify data."""
 
@@ -179,6 +187,7 @@ class HubApp(App):
         Binding("f1", "show_dashboard", show=False),
         Binding("f2", "show_sessions", show=False),
         Binding("f3", "show_projects", show=False),
+        Binding("f4", "show_runtime", show=False),
         Binding("?", "help", show=False),
     ]
     _WORKSPACE_ACTIONS = frozenset(binding.action for binding in BINDINGS)
@@ -203,7 +212,7 @@ class HubApp(App):
         self._analytics = AnalyticsSnapshot()
         self._session_usage: dict[str, UsageSummary] = {}
         self._search_total = 0
-        self._cancel_scan = self._is_indexing = self._closing = self._handoff = False
+        self._cancel_scan = self._is_indexing = self._workspace_closing = self._handoff = False
         self._index_worker = None
         self._scan_progress = IndexProgress(status="")
         self._scan_error: str | None = None
@@ -213,20 +222,31 @@ class HubApp(App):
         self._project_pages: dict[str, tuple[list[SearchResult], int, dict[str, UsageSummary]]] = {}
         self._project_loading: set[str] = set()
         self._rendering_projects = False
+        self._runtime_generation = 0
+        self._runtime_inflight: int | None = None
+        self._runtime_visible = False
+        self._runtime_worker = None
 
     def t(self, key: str, **values) -> str:
         return tr(self.language, key, **values)
 
     @property
-    def current_view(self) -> str:
-        return self.main_screen.query_one("#views", ContentSwitcher).current or "sessions-view"
+    def main_screen(self):
+        return self.screen_stack[0] if self.screen_stack else None
 
     @property
-    def main_screen(self):
-        return self.screen_stack[0]
+    def current_view(self) -> str:
+        screen = self.main_screen
+        if screen is None:
+            return "sessions-view"
+        try:
+            return screen.query_one("#views", ContentSwitcher).current or "sessions-view"
+        except Exception:
+            return "sessions-view"
 
     def on_unmount(self) -> None:
-        self._closing = self._cancel_scan = True
+        self._workspace_closing = self._cancel_scan = True
+        self._pause_runtime()
         self.store.close()
 
     def compose(self) -> ComposeResult:
@@ -238,6 +258,7 @@ class HubApp(App):
         self._set_columns()
         self._update_platform_options()
         self.main_screen.set_class(self.size.width < 100, "narrow")
+        self.set_interval(3, self._runtime_tick)
         self._show_view("sessions-view")
         self._render_scope()
         self.action_refresh_index()
@@ -268,12 +289,18 @@ class HubApp(App):
             self.call_after_refresh(table.move_cursor, row=cursor)
             self.call_after_refresh(table.scroll_to, x=position.x, y=position.y, animate=False)
 
-    def on_resize(self) -> None:
-        if not self.is_mounted:
+    def on_resize(self, event: events.Resize) -> None:
+        if not self.screen_stack or not self.main_screen.is_mounted:
             return
-        self.main_screen.set_class(self.size.width < 100, "narrow")
-        if self.size.width < 100 and isinstance(self.focused, TextArea):
+        self.main_screen.set_class(event.size.width < 100, "narrow")
+        if event.size.width < 100 and isinstance(self.focused, TextArea):
             self.main_screen.add_class("reading")
+        # App updates its own size in the base resize handler, after this one.
+        self.call_after_refresh(self._render_resized_workspace)
+
+    def _render_resized_workspace(self) -> None:
+        if self._workspace_closing:
+            return
         self._set_columns()
         self._render_sessions()
         self._render_analytics()
@@ -281,13 +308,19 @@ class HubApp(App):
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         if action not in self._WORKSPACE_ACTIONS:
             return True
+        if self._workspace_closing or self._handoff:
+            return action == "force_quit"
         if len(self.screen_stack) > 1:
             return action == "force_quit"
-        if isinstance(self.focused, Input) and action not in {"cancel_or_table", "force_quit", "refresh_index", "show_dashboard", "show_sessions", "show_projects"}:
+        if isinstance(self.focused, Input) and action not in {"cancel_or_table", "force_quit", "refresh_index", "show_dashboard", "show_sessions", "show_projects", "show_runtime"}:
             return False
         return True
 
     def _show_view(self, view: str) -> None:
+        if self._workspace_closing or self._handoff:
+            return
+        if self._runtime_visible and view != "runtime-view":
+            self._pause_runtime()
         self.main_screen.query_one("#views", ContentSwitcher).current = view
         self.main_screen.remove_class("reading")
         self.selected_session_key = self._selections.get(view)
@@ -295,9 +328,14 @@ class HubApp(App):
             node = self.main_screen.query_one("#project-tree", Tree).cursor_node
             if node is None or not node.data or node.data.get("type") != "session":
                 self.selected_session_key = None
-        for name in ("dashboard", "sessions", "projects"):
+        for name in ("dashboard", "sessions", "projects", "runtime"):
             self.main_screen.query_one(f"#nav-{name}", Button).variant = "primary" if view == f"{name}-view" else "default"
-        self.main_screen.query_one({"dashboard-view": "#model-table", "sessions-view": "#sessions", "projects-view": "#project-tree"}[view]).focus()
+        self.main_screen.query_one("#open-filters", Button).disabled = view == "runtime-view"
+        self.main_screen.query_one({"dashboard-view": "#model-table", "sessions-view": "#sessions", "projects-view": "#project-tree", "runtime-view": "#runtime-processes"}[view]).focus()
+        if view == "runtime-view":
+            self._runtime_visible = True
+            self._refresh_runtime()
+        self._render_scan_status()
         self._render_scope()
         self._render_hints()
 
@@ -310,9 +348,64 @@ class HubApp(App):
     def action_show_projects(self) -> None:
         self._show_view("projects-view")
 
+    def action_show_runtime(self) -> None:
+        self._show_view("runtime-view")
+
+    def _pause_runtime(self) -> None:
+        self._runtime_visible = False
+        self._runtime_generation += 1
+
+    def _runtime_tick(self) -> None:
+        if self._runtime_visible and not self._workspace_closing and not self._handoff:
+            self.main_screen.query_one("#runtime-view", RuntimeView).render_status()
+            self._refresh_runtime()
+
+    def _refresh_runtime(self) -> None:
+        if not self._runtime_visible or self._workspace_closing or self._handoff or self._runtime_inflight is not None:
+            return
+        self._runtime_generation += 1
+        generation = self._runtime_generation
+        self._runtime_inflight = generation
+        view = self.main_screen.query_one("#runtime-view", RuntimeView)
+        view.scanning = True
+        view.render_status()
+        self._runtime_worker = self._run_runtime_worker(generation)
+
+    @work(thread=True, group="runtime")
+    def _run_runtime_worker(self, generation: int) -> None:
+        worker = get_current_worker()
+        def cancelled() -> bool:
+            return worker.is_cancelled or self._workspace_closing or self._handoff or generation != self._runtime_generation
+        snapshot, error = None, None
+        try:
+            snapshot = collect_runtime(cancelled=cancelled, timeout=10.0)
+        except Exception:
+            # Native source failures normally arrive as typed issues. Never expose
+            # an unexpected exception's potentially unsanitized command payload.
+            error = "Unexpected collector failure; refresh to retry."
+        finally:
+            self.post_message(RuntimeReady(generation, snapshot, error))
+
+    def on_runtime_ready(self, message: RuntimeReady) -> None:
+        if self._runtime_inflight != message.generation:
+            return
+        self._runtime_inflight = None
+        if self._workspace_closing:
+            return
+        view = self.main_screen.query_one("#runtime-view", RuntimeView)
+        view.scanning = False
+        if message.generation != self._runtime_generation or not self._runtime_visible or self._handoff:
+            if self._runtime_visible and not self._handoff:
+                self._refresh_runtime()
+            return
+        view.failure = self.t(message.error) if message.error else None
+        if message.snapshot is not None:
+            view.snapshot = message.snapshot
+        view.render_snapshot()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         name = event.button.id
-        if name in {"nav-dashboard", "nav-sessions", "nav-projects"}:
+        if name in {"nav-dashboard", "nav-sessions", "nav-projects", "nav-runtime"}:
             self._show_view(name.removeprefix("nav-") + "-view")
         elif name == "dash-tab-overview":
             self.main_screen.query_one("#dash-switcher", ContentSwitcher).current = "dash-overview-pane"
@@ -326,6 +419,8 @@ class HubApp(App):
             self.action_settings()
         elif name == "open-filters":
             self.action_filters()
+        elif name == "runtime-refresh":
+            self._refresh_runtime()
         elif name in {"preview-info", "project-preview-info"}:
             self.action_details()
 
@@ -345,6 +440,7 @@ class HubApp(App):
         self.language = language
         labels = {
             "nav-sessions": "Sessions", "nav-projects": "Projects", "nav-dashboard": "Dashboard", "nav-settings": "Settings",
+            "nav-runtime": "Runtime",
             "open-filters": "Filters", "preview-info": "Details", "project-preview-info": "Details",
             "kpi-tokens-title": "Total tokens", "kpi-cost-title": "Known cost", "kpi-sessions-title": "Total sessions", "kpi-messages-title": "Total messages",
             "dash-tab-overview": "Overview", "dash-tab-trend": "Trend",
@@ -367,6 +463,9 @@ class HubApp(App):
         self._render_sessions()
         self._render_analytics()
         self._render_projects()
+        runtime = self.main_screen.query_one("#runtime-view", RuntimeView)
+        runtime.language = language
+        runtime.render_snapshot()
         for view in ("sessions-view", "projects-view"):
             self._render_detail(view)
         self._render_scope()
@@ -374,6 +473,8 @@ class HubApp(App):
         self._render_hints()
 
     def action_filters(self) -> None:
+        if self.current_view == "runtime-view":
+            return
         self.push_screen(FilterScreen(self.language, self._filter_selection, self._platform_options,
                                       tuple((self._project_display(key, label), key) for key, label in self._project_options)), self._apply_filters)
 
@@ -403,6 +504,11 @@ class HubApp(App):
         return SearchFilters(tool=choice.tool, project_key=choice.project_key, time_bound_ms=bound, kind=choice.kind)
 
     def _render_scope(self) -> None:
+        if self.current_view == "runtime-view":
+            label = self.main_screen.query_one("#scope-summary", Label)
+            label.update(Text(self.t("Local Claude · read-only · history filters do not apply")))
+            label.tooltip = self.t("Observed evidence only; no process control or HTTP interception.")
+            return
         choice = self._filter_selection
         parts = [PLATFORM_LABELS.get(choice.tool, choice.tool) if choice.tool else self.t("All tools")]
         if choice.project_key is not None:
@@ -415,6 +521,10 @@ class HubApp(App):
         self.main_screen.query_one("#scope-summary", Label).tooltip = self.t(scope)
 
     def _render_hints(self) -> None:
+        if self.current_view == "runtime-view":
+            hint = self.t("↑↓ select   Enter inspect   Esc list   Ctrl+R scan   F2 sessions   ? help")
+            self.main_screen.query_one("#key-hints", Static).update(Text(hint, no_wrap=True, overflow="ellipsis"))
+            return
         if self.main_screen.has_class("reading"):
             hint = self.t("Esc back   i details   r resume   Ctrl+C copy selection")
         elif self.current_view == "projects-view":
@@ -426,8 +536,11 @@ class HubApp(App):
         self.main_screen.query_one("#key-hints", Static).update(Text(hint, no_wrap=True, overflow="ellipsis"))
 
     def action_help(self) -> None:
+        if self.current_view == "runtime-view":
+            self.push_screen(InfoScreen(self.language, self.t("F4 Runtime · F1 dashboard · F2 sessions · F3 projects\nUp/Down select process · Enter inspect · Esc process list\nTab switch panels · PageUp/PageDown scroll details\nCtrl+R refresh runtime · , settings · q quit · Ctrl+Q always quit\nAuto-refresh every 3 seconds while visible. No lifecycle controls.\nHistory filters, search, resume and history pagination do not apply.\nSockets are sampled OS evidence, not HTTP requests or billing."), "Keyboard help"))
+            return
         self.push_screen(InfoScreen(self.language, self.t(
-            "F1 dashboard · F2 sessions · F3 projects\n/ search · f filters · , settings\nUp/Down select · Enter read or expand\nEsc close overlay or return to list\n[ previous page · ] next page\ni details · r confirm native resume\nCtrl+R refresh · q quit · Ctrl+Q always quit\nSelect text with mouse or Shift+arrows; Ctrl+C copies.\nConversation text, model names and paths are never translated."), "Keyboard help"))
+            "F1 dashboard · F2 sessions · F3 projects · F4 Runtime\n/ search · f filters · , settings\nUp/Down select · Enter read or expand\nEsc close overlay or return to list\n[ previous page · ] next page\ni details · r confirm native resume\nCtrl+R refresh · q quit · Ctrl+Q always quit\nSelect text with mouse or Shift+arrows; Ctrl+C copies.\nConversation text, model names and paths are never translated."), "Keyboard help"))
 
     def _update_platform_options(self) -> None:
         clients = set(PLATFORM_LABELS)
@@ -448,6 +561,8 @@ class HubApp(App):
             self.main_screen.query_one("#sessions", DataTable).focus()
 
     def _trigger_search(self) -> None:
+        if self._workspace_closing or not self.main_screen:
+            return
         self.current_generation += 1
         self._run_search_worker(self.current_generation, self.main_screen.query_one("#query", Input).value.strip(),
                                 self._get_current_filters(), self.page_offset, self.page_size)
@@ -456,7 +571,7 @@ class HubApp(App):
     def _run_search_worker(self, gen: int, query: str, filters: SearchFilters, offset: int, limit: int) -> None:
         worker = get_current_worker()
         def cancelled() -> bool:
-            return worker.is_cancelled or self._closing or gen != self.current_generation
+            return worker.is_cancelled or self._workspace_closing or gen != self.current_generation
         try:
             with closing(Store(self.store.db_path, read_only=True)) as reader:
                 reader.conn.set_progress_handler(cancelled, 1000)
@@ -540,7 +655,7 @@ class HubApp(App):
     def _run_detail_worker(self, key: str, view: str, generation: int) -> None:
         worker = get_current_worker()
         def cancelled() -> bool:
-            return worker.is_cancelled or self._closing or generation != self._detail_generations[view]
+            return worker.is_cancelled or self._workspace_closing or generation != self._detail_generations[view]
         try:
             with closing(Store(self.store.db_path, read_only=True)) as reader:
                 reader.conn.set_progress_handler(cancelled, 1000)
@@ -636,7 +751,7 @@ class HubApp(App):
     def _run_analytics_worker(self, generation: int, filters: SearchFilters) -> None:
         worker = get_current_worker()
         def cancelled() -> bool:
-            return worker.is_cancelled or self._closing or generation != self._analytics_generation
+            return worker.is_cancelled or self._workspace_closing or generation != self._analytics_generation
         try:
             with closing(Store(self.store.db_path, read_only=True)) as reader:
                 reader.conn.set_progress_handler(cancelled, 1000)
@@ -819,7 +934,7 @@ class HubApp(App):
     def _run_project_worker(self, generation: int, key: str, filters: SearchFilters, offset: int, limit: int) -> None:
         worker = get_current_worker()
         def cancelled() -> bool:
-            return worker.is_cancelled or self._closing or generation != self._project_generation
+            return worker.is_cancelled or self._workspace_closing or generation != self._project_generation
         try:
             with closing(Store(self.store.db_path, read_only=True)) as reader:
                 reader.conn.set_progress_handler(cancelled, 1000)
@@ -915,19 +1030,27 @@ class HubApp(App):
             self._read_preview()
 
     def action_focus_search(self) -> None:
+        if self.current_view == "runtime-view":
+            return
         self._show_view("sessions-view")
         self.main_screen.query_one("#query", Input).focus()
 
     def action_cancel_or_table(self) -> None:
         self.main_screen.remove_class("reading")
-        self.main_screen.query_one({"sessions-view": "#sessions", "projects-view": "#project-tree", "dashboard-view": "#model-table"}[self.current_view]).focus()
+        self.main_screen.query_one({"sessions-view": "#sessions", "projects-view": "#project-tree", "dashboard-view": "#model-table", "runtime-view": "#runtime-processes"}[self.current_view]).focus()
         self._render_hints()
 
     def action_preview_page_up(self) -> None:
+        if self.current_view == "runtime-view":
+            self.main_screen.query_one("#runtime-details", TextArea).scroll_page_up()
+            return
         if self.current_view in self._selections:
             self.main_screen.query_one("#project-preview" if self.current_view == "projects-view" else "#preview", TextArea).scroll_page_up()
 
     def action_preview_page_down(self) -> None:
+        if self.current_view == "runtime-view":
+            self.main_screen.query_one("#runtime-details", TextArea).scroll_page_down()
+            return
         if self.current_view in self._selections:
             self.main_screen.query_one("#project-preview" if self.current_view == "projects-view" else "#preview", TextArea).scroll_page_down()
 
@@ -943,13 +1066,20 @@ class HubApp(App):
 
     def action_quit_app(self) -> None:
         if not isinstance(self.focused, Input):
+            self._workspace_closing = self._cancel_scan = True
+            self._pause_runtime()
             self.exit(0)
 
     def action_force_quit(self) -> None:
+        self._workspace_closing = self._cancel_scan = True
+        self._pause_runtime()
         self.exit(0)
 
     def action_refresh_index(self) -> None:
-        if self._is_indexing or self._handoff or self._closing:
+        if self.current_view == "runtime-view":
+            self._refresh_runtime()
+            return
+        if self._is_indexing or self._handoff or self._workspace_closing:
             return
         self._is_indexing = True
         self._cancel_scan = False
@@ -960,7 +1090,7 @@ class HubApp(App):
     def _run_indexing_worker(self) -> None:
         worker = get_current_worker()
         def cancelled() -> bool:
-            return self._cancel_scan or self._closing or worker.is_cancelled
+            return self._cancel_scan or self._workspace_closing or worker.is_cancelled
         def progress_cb(progress: IndexProgress) -> None:
             self.post_message(ScanStatusUpdate(replace(progress, errors=list(progress.errors))))
         try:
@@ -973,7 +1103,7 @@ class HubApp(App):
 
     def on_scan_finished(self, message: ScanFinished) -> None:
         self._is_indexing = False
-        if self._closing:
+        if self._workspace_closing:
             return
         self._render_scan_status()
         if self._handoff:
@@ -996,6 +1126,9 @@ class HubApp(App):
         self._render_scan_status()
 
     def _render_scan_status(self) -> None:
+        if self.current_view == "runtime-view":
+            self.main_screen.query_one("#scan-status", Label).update(Text(self.t("Observed evidence only; no process control or HTTP interception.")))
+            return
         progress = self._scan_progress
         errors = len(progress.errors) + bool(self._scan_error)
         if self._is_indexing:
@@ -1030,6 +1163,8 @@ class HubApp(App):
         return text
 
     def action_resume_session(self) -> None:
+        if self._handoff or self._workspace_closing or len(self.screen_stack) > 1:
+            return
         if self.current_view not in self._selections or isinstance(self.focused, Input):
             return
         if not self.selected_session_key:
@@ -1050,17 +1185,20 @@ class HubApp(App):
         self.push_screen(ResumeConfirmScreen(snap.client, target, spec.cwd, profile, self.language),
                          lambda confirmed: self._on_resume_confirmed(confirmed, snap, spec))
 
-    @work(exclusive=True, group="handoff")
+    @work(group="handoff")
     async def _on_resume_confirmed(self, confirmed: bool, snap: SessionSnapshot, spec: LaunchSpec) -> None:
-        if not confirmed:
+        if not confirmed or self._handoff or self._workspace_closing:
             return
         self._handoff = self._cancel_scan = True
+        self._pause_runtime()
         try:
             if self._index_worker:
                 try:
                     await self._index_worker.wait()
                 except WorkerCancelled:
                     pass
+            if self._workspace_closing:
+                return
             reverified = prepare_resume(snap.ref)
             if isinstance(reverified, Unavailable):
                 self.notify(self._unavailable_text(reverified), severity="error", markup=False)
@@ -1085,7 +1223,12 @@ class HubApp(App):
                 self.notify(self.t("Native CLI exited with status {code}", code=code), severity="warning", markup=False)
         finally:
             self._handoff = False
-            self.action_refresh_index()
+            if not self._workspace_closing:
+                if self.current_view == "runtime-view":
+                    self._runtime_visible = True
+                    self._refresh_runtime()
+                else:
+                    self.action_refresh_index()
 
 
 def run_app(config_path: Path | None = None, data_dir: Path | None = None) -> int:

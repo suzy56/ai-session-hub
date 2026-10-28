@@ -14,6 +14,7 @@ from textual.widgets import (
 )
 
 from ai_session_hub.i18n import tr
+from ai_session_hub.ui_runtime import RuntimeView
 
 PLATFORM_LABELS = {
     "codex": "Codex",
@@ -32,6 +33,7 @@ def compose_hub_widgets(language: str) -> tuple[Widget, ...]:
         Button(tr(language, "Sessions"), id="nav-sessions", variant="primary"),
         Button(tr(language, "Projects"), id="nav-projects"),
         Button(tr(language, "Dashboard"), id="nav-dashboard"),
+        Button(tr(language, "Runtime"), id="nav-runtime"),
         Static("", id="nav-spacer"),
         Button(tr(language, "Filters"), id="open-filters"),
         Button(tr(language, "Settings"), id="nav-settings"),
@@ -208,6 +210,7 @@ def compose_hub_widgets(language: str) -> tuple[Widget, ...]:
         sessions_view,
         projects_view,
         dashboard_view,
+        RuntimeView(language),
         id="views",
         initial="sessions-view",
     )

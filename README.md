@@ -88,6 +88,16 @@ AI Session Hub supports native transcript parsing, token accounting, and verifie
 * **Infinite Project Pagination**: Smooth `Load more…` pagination for workspaces exceeding 200 sessions.
 * **Tilde Path Shortening**: Automatic `~` home directory abbreviation prevents text wrapping.
 
+### Local Claude Runtime Monitor
+* Open **Runtime** with `F4` to inspect running native or identifiable Node-hosted Claude Code processes, independently of indexed session history.
+* Select a PID to see its executable, start time, elapsed runtime, working directory, direct **PPID** and ordered ancestor commands. Selection is keyed by PID and start time; exited or reused PIDs cannot retain old details.
+* Inspect PID-scoped TCP/UDP sockets, numeric local/remote endpoints and reported connection states. Refresh runs in the background about every three seconds while the view is visible; `Ctrl+R` or **Refresh** requests a new sample.
+* CCB evidence includes project, tmux session/pane, attached clients, lifecycle intent and controller references when available. **Zero attached clients means detached, not stopped.** Ownership requires a matching live pane/ancestor; historical PID files alone never establish liveness.
+* Uses native `ps` and `lsof` on macOS/Linux; install `lsof` if your Linux distribution does not include it. `tmux` is required only for live tmux ownership inspection. macOS native argument queries and Linux `/proc` preserve argument boundaries; process environment entries are not inspected.
+* Missing tools, permission limits, partial ancestry, malformed metadata and timeouts remain visible. Monitoring stays read-only: no privilege elevation, process termination, CCB startup/stop, session attachment, telemetry or persistent runtime history. Claude prompt arguments are hidden and recognizable credential-bearing ancestor arguments are redacted.
+
+Sockets are sampled OS evidence, **not HTTP request history, model-call counts or billing**. Short-lived connections between samples can be missed, and proxy IPs do not reliably identify destination domains. CCB association is limited to accessible runtime metadata discoverable from observed process directories/ownership; unavailable evidence is not guessed.
+
 ### 🌐 Bilingual & Minimalist TUI Aesthetic
 * **OMP-Inspired Design**: Neutral dark palette, subtle dividers, single accent color, and high-contrast typography.
 * **Live Language Switch**: Instant runtime toggle between English and 简体中文 (`,`) with atomic persistence in `ui-preferences.json`.
@@ -191,16 +201,17 @@ cache_write_per_million = 3.75
 | `F1` | Switch to **Dashboard** view | Global |
 | `F2` | Switch to **Sessions** view | Global |
 | `F3` | Switch to **Projects** view | Global |
+| `F4` | Switch to **Runtime** monitoring | Global |
 | `/` | Focus search input field | Sessions view |
-| `f` | Open **Filters** dialog (Tool / Project / Time / Kind) | Global |
+| `f` | Open **Filters** dialog (Tool / Project / Time / Kind) | History views |
 | `,` | Open **Settings** dialog (Language switch) | Global |
 | `r` | Request **Native Resume** for selected session | Table / Tree |
 | `i` | Show full session **Details** modal (Tokens / Provenance) | Table / Tree |
-| `Enter` | Read selected conversation / Expand project folder | Table / Tree |
+| `Enter` | Read conversation / Expand project / Inspect process | Table / Tree / Runtime |
 | `[` / `]` | Previous / Next page (Sessions) or Overview / Trend tab (Dashboard) | View |
-| `PageUp` / `PageDown` | Scroll conversation preview | Preview |
+| `PageUp` / `PageDown` | Scroll conversation preview or runtime details | Preview / Runtime |
 | `Esc` | Close overlay dialog / Return from preview to table | Global |
-| `Ctrl+R` | Refresh index manually | Global |
+| `Ctrl+R` | Refresh runtime sample in Runtime; otherwise refresh session index | Global |
 | `q` | Quit application (when not typing in search) | Global |
 | `Ctrl+Q` | Force quit application | Global |
 | `?` | Contextual help | Global |
